@@ -1,0 +1,165 @@
+{
+    "definition": {
+        "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+        "actions": {
+            "Condition": {
+                "actions": {},
+                "else": {
+                    "actions": {
+                        "foreach": {
+                            "actions": {
+                                "updateitem": {
+                                    "inputs": {
+                                        "body": {
+                                            "businessPhones": "@{items('foreach')?['businessPhones']}",
+                                            "displayName": "@{items('foreach')?['displayName']}",
+                                            "id": "@{items('foreach')?['id']}",
+                                            "jobTitle": "@{items('foreach')?['jobTitle']}",
+                                            "lastSignInDateTime": "@{formatDateTime(coalesce(items('foreach')?['lastSignInDateTime'],items('foreach')?['createdDateTime']),'yyyy-MM-dd')}",
+                                            "lastSignInDays": "@if(equals(coalesce(item()?['signInActivity']?['lastSignInDateTime'],'null'), 'null'), -1, div(sub(ticks(utcNow()),ticks(formatDateTime(coalesce(items('foreach')?['lastSignInDateTime'],items('foreach')?['lastSignInDateTime']),'yyyy-MM-dd'))),864000000000))",
+                                            "mail": "@{items('foreach')?['mail']}",
+                                            "mobilePhone": "@{items('foreach')?['mobilePhone']}",
+                                            "noLogin": "@if(equals(coalesce(item()?['signInActivity']?['lastSignInDateTime'],'null'), 'null'), true, false)",
+                                            "officeLocation": "@{items('foreach')?['officeLocation']}",
+                                            "userPrincipalName": "@{items('foreach')?['userPrincipalName']}"
+                                        },
+                                        "host": {
+                                            "connection": {
+                                                "name": "@parameters('$connections')['azuretables']['connectionId']"
+                                            }
+                                        },
+                                        "method": "patch",
+                                        "path": "/v2/storageAccounts/@{encodeURIComponent(encodeURIComponent('AccountNameFromSettings'))}/tables/@{encodeURIComponent('usersdemo')}/entities(PartitionKey='@{encodeURIComponent(item()?['userType'])}',RowKey='@{encodeURIComponent(items('foreach')?['id'])}')"
+                                    },
+                                    "runAfter": {},
+                                    "type": "ApiConnection"
+                                }
+                            },
+                            "foreach": "@body('HTTP')?['value']",
+                            "runAfter": {},
+                            "type": "Foreach"
+                        }
+                    }
+                },
+                "expression": {
+                    "and": [
+                        {
+                            "equals": [
+                                "@parameters('development')",
+                                true
+                            ]
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "HTTP": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "If"
+            },
+            "Get_secret": {
+                "inputs": {
+                    "host": {
+                        "connection": {
+                            "name": "@parameters('$connections')['keyvault']['connectionId']"
+                        }
+                    },
+                    "method": "get",
+                    "path": "/secrets/@{encodeURIComponent('collabsummitApp')}/value"
+                },
+                "runAfter": {
+                    "Response": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "ApiConnection"
+            },
+            "HTTP": {
+                "inputs": {
+                    "authentication": {
+                        "audience": "https://graph.microsoft.com/",
+                        "authority": "https://login.microsoft.com",
+                        "clientId": "@parameters('clientid')",
+                        "secret": "@body('Get_secret')?['value']",
+                        "tenant": "@parameters('tenantid')",
+                        "type": "ActiveDirectoryOAuth"
+                    },
+                    "method": "GET",
+                    "uri": "https://graph.microsoft.com/v1.0/users?&$select=id,userPrincipalName,displayName,signInActivity,externalUserState,accountEnabled,userType,employeeId,createdDateTime,businessPhones,jobTitle,mail,mobilePhone,officeLocation"
+                },
+                "runAfter": {
+                    "Get_secret": [
+                        "Succeeded"
+                    ]
+                },
+                "runtimeConfiguration": {
+                    "paginationPolicy": {
+                        "minimumItemCount": 100000
+                    }
+                },
+                "type": "Http"
+            },
+            "Response": {
+                "inputs": {
+                    "statusCode": 200
+                },
+                "kind": "Http",
+                "runAfter": {},
+                "type": "Response"
+            }
+        },
+        "contentVersion": "1.0.0.0",
+        "outputs": {},
+        "parameters": {
+            "$connections": {
+                "defaultValue": {},
+                "type": "Object"
+            },
+            "clientid": {
+                "defaultValue": "<your-appid>",
+                "type": "String"
+            },
+            "development": {
+                "defaultValue": false,
+                "type": "Bool"
+            },
+            "logindayslimit": {
+                "defaultValue": 30,
+                "type": "Int"
+            },
+            "tenantid": {
+                "defaultValue": "<your-tenantid>",
+                "type": "String"
+            }
+        },
+        "triggers": {
+            "manual": {
+                "inputs": {},
+                "kind": "Http",
+                "type": "Request"
+            }
+        }
+    },
+    "parameters": {
+        "$connections": {
+            "value": {
+                "azuretables": {
+                    "connectionId": ".",
+                    "connectionName": "azuretables",
+                    "id": "."
+                },
+                "keyvault": {
+                    "connectionId": ".",
+                    "connectionName": "keyvault",
+                    "connectionProperties": {
+                        "authentication": {
+                            "type": "ManagedServiceIdentity"
+                        }
+                    },
+                    "id": "."
+                }
+            }
+        }
+    }
+}
