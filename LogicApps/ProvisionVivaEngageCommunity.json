@@ -1,0 +1,305 @@
+{
+    "definition": {
+        "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+        "actions": {
+            "Delay": {
+                "inputs": {
+                    "interval": {
+                        "count": 1,
+                        "unit": "Minute"
+                    }
+                },
+                "runAfter": {
+                    "parsegroupid": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "Wait"
+            },
+            "addmember": {
+                "inputs": {
+                    "authentication": {
+                        "audience": "https://graph.microsoft.com/",
+                        "authority": "https://login.microsoft.com",
+                        "clientId": "@parameters('clientid')",
+                        "secret": "@body('getsecret')?['value']",
+                        "tenant": "@parameters('tenantid')",
+                        "type": "ActiveDirectoryOAuth"
+                    },
+                    "body": {
+                        "@{concat('@','odata.id')}": "https://graph.microsoft.com/beta/directoryObjects/<userid>"
+                    },
+                    "headers": {
+                        "Content-Type": "application/json"
+                    },
+                    "method": "POST",
+                    "uri": "https://graph.microsoft.com/beta/groups/@{variables('groupid')}/members/$ref"
+                },
+                "runAfter": {
+                    "Delay": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "Http"
+            },
+            "creategroup": {
+                "inputs": {
+                    "authentication": {
+                        "audience": "https://graph.microsoft.com/",
+                        "authority": "https://login.microsoft.com",
+                        "clientId": "@parameters('clientid')",
+                        "secret": "@body('getsecret')?['value']",
+                        "tenant": "@parameters('tenantid')",
+                        "type": "ActiveDirectoryOAuth"
+                    },
+                    "body": {
+                        "description": "A community where financial advisors who represent customers from software engineering profession can discuss advice and suggestions for their clients.",
+                        "displayName": "@{variables('groupname')}",
+                        "owners@odata.bind": [
+                            "https://graph.microsoft.com/beta/users/<owner1-userid>",
+                            "https://graph.microsoft.com/beta/users/<owner2-userid>"
+                        ],
+                        "privacy": "private"
+                    },
+                    "headers": {
+                        "Content-Type": "application/json"
+                    },
+                    "method": "POST",
+                    "uri": "https://graph.microsoft.com/beta/employeeExperience/communities"
+                },
+                "runAfter": {
+                    "getsecret": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "Http"
+            },
+            "getgroup": {
+                "inputs": {
+                    "authentication": {
+                        "audience": "https://graph.microsoft.com/",
+                        "authority": "https://login.microsoft.com",
+                        "clientId": "@parameters('clientid')",
+                        "secret": "@body('getsecret')?['value']",
+                        "tenant": "@parameters('tenantid')",
+                        "type": "ActiveDirectoryOAuth"
+                    },
+                    "headers": {
+                        "Content-Type": "application/json"
+                    },
+                    "method": "GET",
+                    "uri": "https://graph.microsoft.com/beta/employeeExperience/communities/@{variables('communityid')}"
+                },
+                "runAfter": {
+                    "setgroupid": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "Http"
+            },
+            "getsecret": {
+                "inputs": {
+                    "host": {
+                        "connection": {
+                            "name": "@parameters('$connections')['keyvault']['connectionId']"
+                        }
+                    },
+                    "method": "get",
+                    "path": "/secrets/@{encodeURIComponent('secret')}/value"
+                },
+                "runAfter": {
+                    "groupid": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "ApiConnection"
+            },
+            "groupid": {
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "groupid",
+                            "type": "string"
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "initcommunityid": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "InitializeVariable"
+            },
+            "initcommunityid": {
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "communityid",
+                            "type": "string"
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "initgrouname": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "InitializeVariable"
+            },
+            "initgrouname": {
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "groupname",
+                            "type": "string",
+                            "value": "Finance 11"
+                        }
+                    ]
+                },
+                "runAfter": {},
+                "type": "InitializeVariable"
+            },
+            "parsegroupid": {
+                "inputs": {
+                    "name": "groupid",
+                    "value": "@body('parsejsonget')?['groupId']"
+                },
+                "runAfter": {
+                    "parsejsonget": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "SetVariable"
+            },
+            "parsejsoncreate": {
+                "inputs": {
+                    "content": "@body('creategroup')",
+                    "schema": {
+                        "properties": {
+                            "@@odata.context": {
+                                "type": "string"
+                            },
+                            "createdDateTime": {
+                                "type": "string"
+                            },
+                            "id": {
+                                "type": "string"
+                            },
+                            "lastActionDateTime": {
+                                "type": "string"
+                            },
+                            "operationType": {
+                                "type": "string"
+                            },
+                            "resourceId": {
+                                "type": "string"
+                            },
+                            "resourceLocation": {
+                                "type": "string"
+                            },
+                            "status": {
+                                "type": "string"
+                            },
+                            "statusDetail": {}
+                        },
+                        "type": "object"
+                    }
+                },
+                "runAfter": {
+                    "creategroup": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "ParseJson"
+            },
+            "parsejsonget": {
+                "inputs": {
+                    "content": "@body('getgroup')",
+                    "schema": {
+                        "properties": {
+                            "@@odata.context": {
+                                "type": "string"
+                            },
+                            "description": {
+                                "type": "string"
+                            },
+                            "displayName": {
+                                "type": "string"
+                            },
+                            "groupId": {
+                                "type": "string"
+                            },
+                            "id": {
+                                "type": "string"
+                            },
+                            "privacy": {
+                                "type": "string"
+                            }
+                        },
+                        "type": "object"
+                    }
+                },
+                "runAfter": {
+                    "getgroup": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "ParseJson"
+            },
+            "setgroupid": {
+                "inputs": {
+                    "name": "communityid",
+                    "value": "@body('parsejsoncreate')?['resourceId']"
+                },
+                "runAfter": {
+                    "parsejsoncreate": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "SetVariable"
+            }
+        },
+        "contentVersion": "1.0.0.0",
+        "outputs": {},
+        "parameters": {
+            "$connections": {
+                "defaultValue": {},
+                "type": "Object"
+            },
+            "clientid": {
+                "defaultValue": "<clientid>",
+                "type": "String"
+            },
+            "tenantid": {
+                "defaultValue": "<tenantid>",
+                "type": "String"
+            }
+        },
+        "triggers": {
+            "manual": {
+                "inputs": {
+                    "schema": {}
+                },
+                "kind": "Http",
+                "type": "Request"
+            }
+        }
+    },
+    "parameters": {
+        "$connections": {
+            "value": {
+                "keyvault": {
+                    "connectionId": "/subscriptions/<subscriptionid>/resourceGroups/RG-VivaEngage/providers/Microsoft.Web/connections/keyvault",
+                    "connectionName": "keyvault",
+                    "connectionProperties": {
+                        "authentication": {
+                            "identity": "/subscriptions/<subscriptionid>/resourceGroups/RG-GT365Demo/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<manageduseridentity>",
+                            "type": "ManagedServiceIdentity"
+                        }
+                    },
+                    "id": "/subscriptions/<subscriptionid>/providers/Microsoft.Web/locations/westeurope/managedApis/keyvault"
+                }
+            }
+        }
+    }
+}
