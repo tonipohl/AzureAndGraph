@@ -1,0 +1,153 @@
+{
+    "definition": {
+        "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+        "actions": {
+            "foreachfilter": {
+                "actions": {
+                    "Condition": {
+                        "actions": {
+                            "Append_to_array_variable": {
+                                "inputs": {
+                                    "name": "colors",
+                                    "value": {
+                                        "@{item()}": "@{variables('comparedata')?[item()]}"
+                                    }
+                                },
+                                "runAfter": {},
+                                "type": "AppendToArrayVariable"
+                            }
+                        },
+                        "expression": {
+                            "and": [
+                                {
+                                    "not": {
+                                        "equals": [
+                                            "@variables('data')?[item()]",
+                                            "@variables('comparedata')?[item()]"
+                                        ]
+                                    }
+                                }
+                            ]
+                        },
+                        "runAfter": {},
+                        "type": "If"
+                    }
+                },
+                "foreach": "@variables('myfilter')",
+                "runAfter": {
+                    "initcolors": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "Foreach"
+            },
+            "initcolors": {
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "colors",
+                            "type": "array"
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "initcomparedata": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "InitializeVariable"
+            },
+            "initcomparedata": {
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "comparedata",
+                            "type": "object",
+                            "value": {
+                                "color1": "Red-ish",
+                                "color2": "Green",
+                                "color3": "Purple",
+                                "color4": "Yellow"
+                            }
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "initfilter": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "InitializeVariable"
+            },
+            "initdata": {
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "data",
+                            "type": "object",
+                            "value": {
+                                "color1": "Red",
+                                "color2": "Green",
+                                "color3": "Blue",
+                                "color4": "Gold"
+                            }
+                        }
+                    ]
+                },
+                "runAfter": {},
+                "type": "InitializeVariable"
+            },
+            "initfilter": {
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "myfilter",
+                            "type": "array",
+                            "value": [
+                                "color1",
+                                "color2",
+                                "color3"
+                            ]
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "initdata": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "InitializeVariable"
+            },
+            "showresult": {
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "result",
+                            "type": "string",
+                            "value": "@{join(variables('colors'),',')}"
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "foreachfilter": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "InitializeVariable"
+            }
+        },
+        "contentVersion": "1.0.0.0",
+        "outputs": {},
+        "parameters": {},
+        "triggers": {
+            "manual": {
+                "inputs": {
+                    "schema": {}
+                },
+                "kind": "Http",
+                "type": "Request"
+            }
+        }
+    },
+    "parameters": {}
+}
